@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedThemesRouteImport } from './routes/_authenticated/themes'
 import { Route as AuthenticatedUploadRouteImport } from './routes/_authenticated/upload'
 import { Route as AuthenticatedThemeThemeIdRouteImport } from './routes/_authenticated/theme.$themeId'
@@ -36,6 +37,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedThemesRoute = AuthenticatedThemesRouteImport.update({
   id: '/themes',
   path: '/themes',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/history': typeof AuthenticatedHistoryRoute
   '/themes': typeof AuthenticatedThemesRoute
   '/upload': typeof AuthenticatedUploadRoute
   '/theme/$themeId': typeof AuthenticatedThemeThemeIdRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/history': typeof AuthenticatedHistoryRoute
   '/themes': typeof AuthenticatedThemesRoute
   '/upload': typeof AuthenticatedUploadRoute
   '/theme/$themeId': typeof AuthenticatedThemeThemeIdRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/themes': typeof AuthenticatedThemesRoute
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
   '/_authenticated/theme/$themeId': typeof AuthenticatedThemeThemeIdRoute
@@ -82,15 +91,29 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/dashboard' | '/themes' | '/upload' | '/theme/$themeId'
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/history'
+    | '/themes'
+    | '/upload'
+    | '/theme/$themeId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/themes' | '/upload' | '/theme/$themeId'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/history'
+    | '/themes'
+    | '/upload'
+    | '/theme/$themeId'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
+    | '/_authenticated/history'
     | '/_authenticated/themes'
     | '/_authenticated/upload'
     | '/_authenticated/theme/$themeId'
@@ -132,6 +155,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/history': {
+      id: '/_authenticated/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof AuthenticatedHistoryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/themes': {
       id: '/_authenticated/themes'
       path: '/themes'
@@ -158,6 +188,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedThemesRoute: typeof AuthenticatedThemesRoute
   AuthenticatedUploadRoute: typeof AuthenticatedUploadRoute
   AuthenticatedThemeThemeIdRoute: typeof AuthenticatedThemeThemeIdRoute
@@ -165,6 +196,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedThemesRoute: AuthenticatedThemesRoute,
   AuthenticatedUploadRoute: AuthenticatedUploadRoute,
   AuthenticatedThemeThemeIdRoute: AuthenticatedThemeThemeIdRoute,
