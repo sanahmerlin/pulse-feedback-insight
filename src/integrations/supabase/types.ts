@@ -14,7 +14,131 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      digests: {
+        Row: {
+          created_at: string
+          headline: string
+          id: string
+          item_count: number
+          next_action: string
+          period_end: string
+          period_start: string
+          summary: string
+          top_complaints: Json
+          top_praises: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          headline: string
+          id?: string
+          item_count?: number
+          next_action?: string
+          period_end?: string
+          period_start?: string
+          summary: string
+          top_complaints?: Json
+          top_praises?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          headline?: string
+          id?: string
+          item_count?: number
+          next_action?: string
+          period_end?: string
+          period_start?: string
+          summary?: string
+          top_complaints?: Json
+          top_praises?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      feedback_items: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          received_at: string
+          sentiment: string | null
+          source: string
+          theme_id: string | null
+          topic: string | null
+          urgency: string
+          urgency_reason: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          received_at?: string
+          sentiment?: string | null
+          source?: string
+          theme_id?: string | null
+          topic?: string | null
+          urgency?: string
+          urgency_reason?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          received_at?: string
+          sentiment?: string | null
+          source?: string
+          theme_id?: string | null
+          topic?: string | null
+          urgency?: string
+          urgency_reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_items_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      themes: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          mention_count: number
+          name: string
+          sentiment: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          mention_count?: number
+          name: string
+          sentiment?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          mention_count?: number
+          name?: string
+          sentiment?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
