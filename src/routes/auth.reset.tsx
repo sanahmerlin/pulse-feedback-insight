@@ -20,14 +20,30 @@ function ResetPasswordPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    // Check if user is authenticated (Supabase sets session automatically when redirecting from recovery link)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+    let isMounted = true;
+
+    const checkSession = async () => {
+      // If landing with a hash token, wait 800ms for Supabase client to parse and set the session
+      if (window.location.hash.includes("access_token") || window.location.hash.includes("recovery")) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!isMounted) return;
+
+      if (session) {
+        setCheckingSession(false);
+      } else {
         toast.error("Invalid or expired password reset session.");
         navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
       }
-      setCheckingSession(false);
-    });
+    };
+
+    checkSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, [navigate]);
 
   async function handleReset(e: React.FormEvent) {
