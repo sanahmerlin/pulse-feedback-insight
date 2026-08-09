@@ -51,13 +51,30 @@ export async function callAiJson<T>(system: string, user: string): Promise<T> {
     throw new Error("AI is not configured. Please set LOVABLE_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY in your local .env file.");
   }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
+  let res: Response | null = null;
+  let retries = 3;
+  let delay = 2000;
 
-  if (res.status === 429) throw new Error("AI rate limit reached. Please try again in a moment.");
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (res.status === 429) {
+      if (attempt === retries) {
+        throw new Error("AI rate limit reached. Please try again in a moment.");
+      }
+      console.log(`Rate limit (429) hit. Retrying in ${delay}ms (attempt ${attempt}/${retries})...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay *= 2;
+      continue;
+    }
+    break;
+  }
+
+  if (!res) throw new Error("Request failed.");
   if (res.status === 402) throw new Error("AI credits exhausted. Please add credits to continue.");
   if (!res.ok) throw new Error(`AI request failed (${res.status}): ${await res.text()}`);
 
