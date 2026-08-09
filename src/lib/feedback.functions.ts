@@ -36,6 +36,11 @@ export const ingestFeedback = createServerFn({ method: "POST" })
           tags.push({ ...tag, index: tag.index + i });
         }
       }
+      
+      // Delay to respect rate limits if there are more batches
+      if (i + batchSize < items.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
     }
 
     const byIndex = new Map(tags.map((t) => [t.index, t]));

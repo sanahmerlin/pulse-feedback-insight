@@ -52,8 +52,8 @@ export async function callAiJson<T>(system: string, user: string): Promise<T> {
   }
 
   let res: Response | null = null;
-  let retries = 3;
-  let delay = 2000;
+  let retries = 5;
+  let delay = 3000;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     res = await fetch(url, {
