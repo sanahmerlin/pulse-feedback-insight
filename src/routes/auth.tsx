@@ -28,10 +28,12 @@ function AuthPage() {
   const navigate = useNavigate();
   const { mode } = useSearch({ from: "/auth" });
   const [isSignUp, setIsSignUp] = useState(mode === "signup");
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -43,6 +45,15 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      if (isForgotPassword) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + "/auth/reset",
+        });
+        if (error) throw error;
+        setResetSent(true);
+        return;
+      }
+
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -94,6 +105,55 @@ function AuthPage() {
                 We sent a confirmation link to {email}. Click it to activate your account.
               </p>
             </div>
+          ) : resetSent ? (
+            <div className="text-center">
+              <h1 className="text-lg font-semibold">Check your email</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                We sent a password reset link to {email}. Click it to choose a new password.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setResetSent(false);
+                  setIsForgotPassword(false);
+                }}
+                className="mt-6 w-full text-center text-sm text-primary hover:underline"
+              >
+                Back to sign in
+              </button>
+            </div>
+          ) : isForgotPassword ? (
+            <>
+              <h1 className="text-lg font-semibold">Reset your password</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Enter your email address and we'll send you a password reset link.
+              </p>
+
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@business.com"
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Sending link…" : "Send reset link"}
+                </Button>
+              </form>
+
+              <button
+                type="button"
+                onClick={() => setIsForgotPassword(false)}
+                className="mt-5 w-full text-center text-sm text-muted-foreground hover:text-foreground"
+              >
+                Back to sign in
+              </button>
+            </>
           ) : (
             <>
               <h1 className="text-lg font-semibold">
@@ -128,7 +188,18 @@ function AuthPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    {!isSignUp && (
+                      <button
+                        type="button"
+                        onClick={() => setIsForgotPassword(true)}
+                        className="text-xs text-muted-foreground hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
                   <Input
                     id="password"
                     type="password"
