@@ -24,7 +24,7 @@ export const ingestFeedback = createServerFn({ method: "POST" })
     const items = data.items.map((t) => t.trim().slice(0, 2000)).filter(Boolean);
 
     const tags: Tag[] = [];
-    const batchSize = 25;
+    const batchSize = 150;
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize);
       const result = await callAiJson<{ tags: Tag[] }>(
