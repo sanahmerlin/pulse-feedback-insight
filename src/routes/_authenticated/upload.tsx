@@ -33,7 +33,7 @@ function UploadPage() {
   const [status, setStatus] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  async function submitItems(items: string[], source: string) {
+  async function submitItems(items: string[], source: string, dates?: string[]) {
     if (items.length === 0) {
       toast.error("No feedback found to analyze.");
       return;
@@ -41,8 +41,8 @@ function UploadPage() {
     setPending("upload");
     try {
       setStatus(`Tagging ${items.length} feedback items with AI…`);
-      const result = await ingest({ data: { items: items.slice(0, 200), source } });
-
+      const result = await ingest({ data: { items: items.slice(0, 200), source, dates: dates?.slice(0, 200) } });
+      
       setPending("analyze");
       setStatus("Grouping into themes and writing your digest…");
       await analyze({ data: undefined });
@@ -78,11 +78,25 @@ function UploadPage() {
         const keys = Object.keys(first);
         const preferred =
           keys.find((k) => /feedback|review|comment|text|message|body|response/i.test(k)) ?? keys[0];
-        const items = rows
-          .map((r) => (preferred ? (r[preferred] ?? "") : Object.values(r).join(" ")))
-          .map((v) => String(v).trim())
-          .filter((v) => v.length > 2);
-        void submitItems(items, "csv");
+        const dateKey = keys.find((k) => /date|time|timestamp|received|created/i.test(k));
+
+        const items: string[] = [];
+        const dates: string[] = [];
+        for (const row of rows) {
+          const content = String(preferred ? (row[preferred] ?? "") : Object.values(row).join(" ")).trim();
+          if (content.length > 2) {
+            items.push(content);
+            if (dateKey && row[dateKey]) {
+              const parsed = Date.parse(row[dateKey]);
+              if (!isNaN(parsed)) {
+                dates.push(new Date(parsed).toISOString());
+              } else {
+                dates.push("");
+              }
+            }
+          }
+        }
+        void submitItems(items, "csv", dates.length > 0 ? dates : undefined);
       },
       error: () => toast.error("Could not read that CSV file."),
     });

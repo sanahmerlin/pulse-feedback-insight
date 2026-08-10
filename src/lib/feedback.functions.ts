@@ -6,6 +6,7 @@ import { z } from "zod";
 const IngestInput = z.object({
   items: z.array(z.string().min(1)).min(1).max(200),
   source: z.string().default("manual"),
+  dates: z.array(z.string()).optional(),
 });
 
 type Tag = {
@@ -22,6 +23,7 @@ export const ingestFeedback = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const items = data.items.map((t) => t.trim().slice(0, 2000)).filter(Boolean);
+    const dates = data.dates ?? [];
 
     const tags: Tag[] = [];
     const batchSize = 150;
@@ -46,6 +48,19 @@ export const ingestFeedback = createServerFn({ method: "POST" })
     const byIndex = new Map(tags.map((t) => [t.index, t]));
     const rows = items.map((content, index) => {
       const tag = byIndex.get(index);
+      
+      // Determine the timestamp (received_at)
+      let receivedAt: string;
+      if (dates[index]) {
+        receivedAt = dates[index];
+      } else {
+        // Linear spacing over the last 14 days with random jitter for organic look
+        const jitter = (Math.random() - 0.5) * 0.5; // +/- 6 hours jitter
+        const daysAgo = Math.max(0, Math.min(14, (index / Math.max(1, items.length - 1)) * 14 + jitter));
+        const date = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+        receivedAt = date.toISOString();
+      }
+
       return {
         user_id: userId,
         content,
@@ -54,6 +69,7 @@ export const ingestFeedback = createServerFn({ method: "POST" })
         topic: tag?.topic ?? "other",
         urgency: tag?.urgency === "high" ? "high" : "none",
         urgency_reason: tag?.urgency === "high" ? (tag.urgency_reason ?? null) : null,
+        received_at: receivedAt,
       };
     });
 
