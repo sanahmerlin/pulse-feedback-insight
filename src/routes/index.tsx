@@ -46,6 +46,13 @@ function Landing() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if we arrived here via a password reset/recovery link fallback
+    const hash = window.location.hash;
+    if (hash && (hash.includes("type=recovery") || hash.includes("access_token"))) {
+      navigate({ to: "/auth/reset", search: { mode: "signin" }, hash, replace: true });
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         navigate({ to: "/dashboard", replace: true });
