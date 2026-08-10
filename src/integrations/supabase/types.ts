@@ -27,6 +27,7 @@ export type Database = {
           top_complaints: Json
           top_praises: Json
           user_id: string
+          category: string | null
         }
         Insert: {
           created_at?: string
@@ -40,6 +41,7 @@ export type Database = {
           top_complaints?: Json
           top_praises?: Json
           user_id: string
+          category?: string | null
         }
         Update: {
           created_at?: string
@@ -53,6 +55,7 @@ export type Database = {
           top_complaints?: Json
           top_praises?: Json
           user_id?: string
+          category?: string | null
         }
         Relationships: []
       }
@@ -69,6 +72,7 @@ export type Database = {
           urgency: string
           urgency_reason: string | null
           user_id: string
+          category: string | null
         }
         Insert: {
           content: string
@@ -82,6 +86,7 @@ export type Database = {
           urgency?: string
           urgency_reason?: string | null
           user_id: string
+          category?: string | null
         }
         Update: {
           content?: string
@@ -95,6 +100,7 @@ export type Database = {
           urgency?: string
           urgency_reason?: string | null
           user_id?: string
+          category?: string | null
         }
         Relationships: [
           {
@@ -116,26 +122,31 @@ export type Database = {
           sentiment: string
           updated_at: string
           user_id: string
+          category: string | null
         }
         Insert: {
           created_at?: string
           description?: string | null
           id?: string
+          parent_theme_id?: string | null
           mention_count?: number
           name: string
           sentiment?: string
           updated_at?: string
           user_id: string
+          category?: string | null
         }
         Update: {
           created_at?: string
           description?: string | null
           id?: string
+          parent_theme_id?: string | null
           mention_count?: number
           name?: string
           sentiment?: string
           updated_at?: string
           user_id?: string
+          category?: string | null
         }
         Relationships: []
       }

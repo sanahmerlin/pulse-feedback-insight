@@ -4,6 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { digestsQuery } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 
+import { useState } from "react";
+
 export const Route = createFileRoute("/_authenticated/history")({
   head: () => ({
     meta: [
@@ -17,7 +19,10 @@ export const Route = createFileRoute("/_authenticated/history")({
 });
 
 function HistoryPage() {
-  const digests = useQuery(digestsQuery);
+  const [category] = useState(() =>
+    typeof window !== "undefined" ? sessionStorage.getItem("feedback_pulse_category") || null : null
+  );
+  const digests = useQuery(digestsQuery(category));
   const list = digests.data ?? [];
 
   return (

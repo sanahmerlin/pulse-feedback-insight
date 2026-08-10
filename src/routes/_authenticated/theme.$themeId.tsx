@@ -4,6 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { feedbackQuery, sentimentTone, themesQuery } from "@/lib/queries";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 
+import { useState } from "react";
+
 export const Route = createFileRoute("/_authenticated/theme/$themeId")({
   head: () => ({
     meta: [
@@ -18,8 +20,11 @@ export const Route = createFileRoute("/_authenticated/theme/$themeId")({
 
 function ThemeDetail() {
   const { themeId } = Route.useParams();
-  const themes = useQuery(themesQuery);
-  const feedback = useQuery(feedbackQuery);
+  const [category] = useState(() =>
+    typeof window !== "undefined" ? sessionStorage.getItem("feedback_pulse_category") || null : null
+  );
+  const themes = useQuery(themesQuery(category));
+  const feedback = useQuery(feedbackQuery(category));
 
   const theme = (themes.data ?? []).find((t) => t.id === themeId);
   const quotes = (feedback.data ?? []).filter((f) => f.theme_id === themeId);

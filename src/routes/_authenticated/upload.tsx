@@ -33,7 +33,12 @@ function UploadPage() {
   const [status, setStatus] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  async function submitItems(items: string[], source: string, dates?: string[]) {
+  async function submitItems(
+    items: string[],
+    source: string,
+    dates?: string[],
+    categories?: string[]
+  ) {
     if (items.length === 0) {
       toast.error("No feedback found to analyze.");
       return;
@@ -41,11 +46,28 @@ function UploadPage() {
     setPending("upload");
     try {
       setStatus(`Tagging ${items.length} feedback items with AI…`);
-      const result = await ingest({ data: { items: items.slice(0, 200), source, dates: dates?.slice(0, 200) } });
-      
+      const result = await ingest({
+        data: {
+          items: items.slice(0, 200),
+          source,
+          dates: dates?.slice(0, 200),
+          categories: categories?.slice(0, 200),
+        },
+      });
+
       setPending("analyze");
-      setStatus("Grouping into themes and writing your digest…");
-      await analyze({ data: undefined });
+      
+      // Generate separate digests and themes for each unique category uploaded
+      const uniqueCats = Array.from(new Set(categories?.slice(0, 200) ?? [])).filter(Boolean);
+      if (uniqueCats.length > 0) {
+        for (const cat of uniqueCats) {
+          setStatus(`Grouping themes and writing digest for ${cat}…`);
+          await analyze({ data: { category: cat } });
+        }
+      } else {
+        setStatus("Grouping into themes and writing your digest…");
+        await analyze({ data: { category: null } });
+      }
 
       await queryClient.invalidateQueries();
       toast.success(
@@ -61,11 +83,21 @@ function UploadPage() {
   }
 
   function handlePaste() {
-    const items = text
+    const lines = text
       .split(/\n{2,}|\r?\n/)
       .map((l) => l.trim())
       .filter((l) => l.length > 2);
-    void submitItems(items, "manual");
+
+    const items: string[] = [];
+    const categories: string[] = [];
+
+    for (const line of lines) {
+      const parsed = parsePrefix(line);
+      items.push(parsed.content);
+      categories.push(parsed.category ?? "");
+    }
+
+    void submitItems(items, "manual", undefined, categories.length > 0 ? categories : undefined);
   }
 
   function handleFile(file: File) {
@@ -79,24 +111,37 @@ function UploadPage() {
         const preferred =
           keys.find((k) => /feedback|review|comment|text|message|body|response/i.test(k)) ?? keys[0];
         const dateKey = keys.find((k) => /date|time|timestamp|received|created/i.test(k));
+        const categoryKey = keys.find((k) => /category|project|product|type/i.test(k));
 
         const items: string[] = [];
         const dates: string[] = [];
+        const categories: string[] = [];
+
         for (const row of rows) {
-          const content = String(preferred ? (row[preferred] ?? "") : Object.values(row).join(" ")).trim();
-          if (content.length > 2) {
-            items.push(content);
+          const rawContent = String(preferred ? (row[preferred] ?? "") : Object.values(row).join(" ")).trim();
+          if (rawContent.length > 2) {
+            const parsed = parsePrefix(rawContent);
+            items.push(parsed.content);
+
+            const categoryVal = categoryKey ? (row[categoryKey] ?? "").trim() : null;
+            categories.push(categoryVal || parsed.category || "");
+
             if (dateKey && row[dateKey]) {
-              const parsed = Date.parse(row[dateKey]);
-              if (!isNaN(parsed)) {
-                dates.push(new Date(parsed).toISOString());
+              const parsedDate = Date.parse(row[dateKey]);
+              if (!isNaN(parsedDate)) {
+                dates.push(new Date(parsedDate).toISOString());
               } else {
                 dates.push("");
               }
             }
           }
         }
-        void submitItems(items, "csv", dates.length > 0 ? dates : undefined);
+        void submitItems(
+          items,
+          "csv",
+          dates.length > 0 ? dates : undefined,
+          categories.length > 0 ? categories : undefined
+        );
       },
       error: () => toast.error("Could not read that CSV file."),
     });
@@ -106,7 +151,9 @@ function UploadPage() {
     setPending("analyze");
     setStatus("Re-clustering themes and writing a fresh digest…");
     try {
-      await analyze({ data: undefined });
+      // Find what category is currently viewed or default to null
+      const currentCategory = sessionStorage.getItem("feedback_pulse_category") || null;
+      await analyze({ data: { category: currentCategory } });
       await queryClient.invalidateQueries();
       toast.success("New digest ready");
       navigate({ to: "/dashboard" });
@@ -194,4 +241,44 @@ function UploadPage() {
       </div>
     </AppShell>
   );
+}
+
+function parsePrefix(line: string): { category: string | null; content: string } {
+  const trimmed = line.trim();
+  
+  // Match 1: "Category", "Content"
+  const matchCsv = trimmed.match(/^"([^"]+)"\s*,\s*"(.+)"$/);
+  if (matchCsv && matchCsv[1] && matchCsv[2]) {
+    return { category: matchCsv[1], content: matchCsv[2] };
+  }
+
+  // Match 2: "Category", Content
+  const matchCsv2 = trimmed.match(/^"([^"]+)"\s*,\s*(.+)$/);
+  if (matchCsv2 && matchCsv2[1] && matchCsv2[2]) {
+    let content = matchCsv2[2].trim();
+    if (content.startsWith('"') && content.endsWith('"')) {
+      content = content.slice(1, -1);
+    }
+    return { category: matchCsv2[1], content };
+  }
+
+  // Match 3: Category: Content (where Category is short, under 30 chars, and not a URL)
+  const matchColon = trimmed.match(/^([^:]+)\s*:\s*(.+)$/);
+  if (matchColon && matchColon[1] && matchColon[2]) {
+    const category = matchColon[1].trim();
+    if (category.length < 30 && !category.includes("http")) {
+      let content = matchColon[2].trim();
+      if (content.startsWith('"') && content.endsWith('"')) {
+        content = content.slice(1, -1);
+      }
+      return { category, content };
+    }
+  }
+
+  // Fallback: no category prefix
+  let content = trimmed;
+  if (content.startsWith('"') && content.endsWith('"')) {
+    content = content.slice(1, -1);
+  }
+  return { category: null, content };
 }

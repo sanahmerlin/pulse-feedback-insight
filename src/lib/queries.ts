@@ -12,6 +12,7 @@ export type Digest = {
   period_end: string;
   item_count: number;
   created_at: string;
+  category: string | null;
 };
 
 export type Theme = {
@@ -20,6 +21,7 @@ export type Theme = {
   description: string | null;
   sentiment: string;
   mention_count: number;
+  category: string | null;
 };
 
 export type FeedbackItem = {
@@ -32,40 +34,47 @@ export type FeedbackItem = {
   urgency_reason: string | null;
   theme_id: string | null;
   received_at: string;
+  category: string | null;
 };
 
-export const digestsQuery = queryOptions({
-  queryKey: ["digests"],
+export const digestsQuery = (category?: string | null) => queryOptions({
+  queryKey: ["digests", category],
   queryFn: async () => {
-    const { data, error } = await supabase
-      .from("digests")
-      .select("*")
-      .order("created_at", { ascending: false });
+    let query = supabase.from("digests").select("*").order("created_at", { ascending: false });
+    if (category && category !== "all") {
+      query = query.eq("category", category);
+    } else {
+      query = query.is("category", null);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as unknown as Digest[];
   },
 });
 
-export const themesQuery = queryOptions({
-  queryKey: ["themes"],
+export const themesQuery = (category?: string | null) => queryOptions({
+  queryKey: ["themes", category],
   queryFn: async () => {
-    const { data, error } = await supabase
-      .from("themes")
-      .select("*")
-      .order("mention_count", { ascending: false });
+    let query = supabase.from("themes").select("*").order("mention_count", { ascending: false });
+    if (category && category !== "all") {
+      query = query.eq("category", category);
+    } else {
+      query = query.is("category", null);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as unknown as Theme[];
   },
 });
 
-export const feedbackQuery = queryOptions({
-  queryKey: ["feedback"],
+export const feedbackQuery = (category?: string | null) => queryOptions({
+  queryKey: ["feedback", category],
   queryFn: async () => {
-    const { data, error } = await supabase
-      .from("feedback_items")
-      .select("*")
-      .order("received_at", { ascending: false })
-      .limit(500);
+    let query = supabase.from("feedback_items").select("*").order("received_at", { ascending: false }).limit(500);
+    if (category && category !== "all") {
+      query = query.eq("category", category);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as unknown as FeedbackItem[];
   },

@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { digestsQuery, feedbackQuery, themesQuery } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
@@ -27,9 +28,20 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function Dashboard() {
-  const digests = useQuery(digestsQuery);
-  const feedback = useQuery(feedbackQuery);
-  const themes = useQuery(themesQuery);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(
+    () => sessionStorage.getItem("feedback_pulse_category") || null
+  );
+
+  const digests = useQuery(digestsQuery(selectedCategory));
+  const feedback = useQuery(feedbackQuery(selectedCategory));
+  const themes = useQuery(themesQuery(selectedCategory));
+
+  // Query all feedback to dynamically extract unique categories for the filter
+  const allFeedback = useQuery(feedbackQuery("all"));
+  const allItems = allFeedback.data ?? [];
+  const categories = Array.from(
+    new Set(allItems.map((i) => i.category).filter(Boolean))
+  ) as string[];
 
   const digest = digests.data?.[0];
   const items = feedback.data ?? [];
@@ -37,17 +49,45 @@ function Dashboard() {
 
   const trend = buildTrend(items);
 
+  const handleCategoryChange = (cat: string | null) => {
+    setSelectedCategory(cat);
+    if (cat) {
+      sessionStorage.setItem("feedback_pulse_category", cat);
+    } else {
+      sessionStorage.removeItem("feedback_pulse_category");
+    }
+  };
+
   return (
     <AppShell
       title="Dashboard"
       description="What your customers are saying right now."
       action={
-        <Button asChild>
-          <Link to="/upload">
-            <Sparkles className="size-4" />
-            Add feedback
-          </Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          {categories.length > 0 && (
+            <select
+              value={selectedCategory || "all"}
+              onChange={(e) => {
+                const val = e.target.value;
+                handleCategoryChange(val === "all" ? null : val);
+              }}
+              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-primary cursor-pointer hover:bg-accent/30"
+            >
+              <option value="all">All Projects</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button asChild>
+            <Link to="/upload">
+              <Sparkles className="size-4" />
+              Add feedback
+            </Link>
+          </Button>
+        </div>
       }
     >
       {urgent.length > 0 && (

@@ -5,6 +5,8 @@ import { feedbackQuery, sentimentTone, themesQuery } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 
+import { useState } from "react";
+
 export const Route = createFileRoute("/_authenticated/themes")({
   head: () => ({
     meta: [
@@ -18,8 +20,11 @@ export const Route = createFileRoute("/_authenticated/themes")({
 });
 
 function ThemesPage() {
-  const themes = useQuery(themesQuery);
-  const feedback = useQuery(feedbackQuery);
+  const [category] = useState(() =>
+    typeof window !== "undefined" ? sessionStorage.getItem("feedback_pulse_category") || null : null
+  );
+  const themes = useQuery(themesQuery(category));
+  const feedback = useQuery(feedbackQuery(category));
   const total = feedback.data?.length ?? 0;
 
   return (
