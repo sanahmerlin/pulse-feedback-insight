@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Activity, AlertTriangle, Layers, Sparkles } from "lucide-react";
+import { AlertTriangle, Layers, Sparkles } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -65,7 +66,7 @@ function Landing() {
       <header className="border-b border-border">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
           <span className="flex items-center gap-2 text-sm font-semibold">
-            <Activity className="size-4 text-primary" />
+            <Logo className="size-4 text-primary" />
             FeedbackPulse
           </span>
           <div className="flex items-center gap-2">

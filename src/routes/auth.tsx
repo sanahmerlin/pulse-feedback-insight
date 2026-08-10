@@ -5,7 +5,7 @@ import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Activity } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -93,7 +93,7 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center justify-center gap-2 text-sm font-semibold">
-          <Activity className="size-4 text-primary" />
+          <Logo className="size-4 text-primary" />
           FeedbackPulse
         </div>
 

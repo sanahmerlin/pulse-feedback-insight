@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Activity, LayoutDashboard, Layers, History, Upload, LogOut } from "lucide-react";
+import { LayoutDashboard, Layers, History, Upload, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "./Logo";
 import type { ReactNode } from "react";
 
 const nav = [
@@ -38,7 +39,7 @@ export function AppShell({
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-6">
           <Link to="/dashboard" className="flex items-center gap-2 text-sm font-semibold">
-            <Activity className="size-4 text-primary" />
+            <Logo className="size-4 text-primary" />
             FeedbackPulse
           </Link>
           <nav className="flex flex-1 items-center gap-1">
