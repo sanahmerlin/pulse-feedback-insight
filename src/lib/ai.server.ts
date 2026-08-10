@@ -73,11 +73,11 @@ export async function callAiJson<T>(system: string, user: string): Promise<T> {
       body: JSON.stringify(body),
     });
 
-    if (res.status === 429) {
+    if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
       if (attempt === retries) {
-        throw new Error("AI rate limit reached. Please try again in a moment.");
+        throw new Error("AI service is currently experiencing high demand. Please try again in a moment.");
       }
-      console.log(`Rate limit (429) hit. Retrying in ${delay}ms (attempt ${attempt}/${retries})...`);
+      console.log(`AI Server Error (${res.status}) hit. Retrying in ${delay}ms (attempt ${attempt}/${retries})...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
       delay *= 2;
       continue;
