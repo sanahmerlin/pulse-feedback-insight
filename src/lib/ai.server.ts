@@ -1,6 +1,7 @@
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 export async function callAiJson<T>(system: string, user: string): Promise<T> {
+  const ollamaModel = process.env["OLLAMA_MODEL"];
   const lovableKey = process.env["LOVABLE_API_KEY"];
   const openaiKey = process.env["OPENAI_API_KEY"];
   const geminiKey = process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"];
@@ -10,7 +11,17 @@ export async function callAiJson<T>(system: string, user: string): Promise<T> {
   let body: any = {};
   let isNativeGemini = false;
 
-  if (lovableKey) {
+  if (ollamaModel) {
+    url = "http://localhost:11434/v1/chat/completions";
+    body = {
+      model: ollamaModel,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      response_format: { type: "json_object" },
+    };
+  } else if (lovableKey) {
     url = "https://ai.gateway.lovable.dev/v1/chat/completions";
     headers["Lovable-API-Key"] = lovableKey;
     headers["X-Lovable-AIG-SDK"] = "fetch";
@@ -48,7 +59,7 @@ export async function callAiJson<T>(system: string, user: string): Promise<T> {
       }
     };
   } else {
-    throw new Error("AI is not configured. Please set LOVABLE_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY in your local .env file.");
+    throw new Error("AI is not configured. Please set LOVABLE_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, or OLLAMA_MODEL in your local .env file.");
   }
 
   let res: Response | null = null;
