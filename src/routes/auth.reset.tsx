@@ -23,19 +23,38 @@ function ResetPasswordPage() {
     let isMounted = true;
 
     const checkSession = async () => {
-      // If landing with a hash token, wait 800ms for Supabase client to parse and set the session
-      if (window.location.hash.includes("access_token") || window.location.hash.includes("recovery")) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-      }
+      try {
+        // Manually parse tokens from URL hash if they are present
+        const hash = window.location.hash;
+        if (hash) {
+          // Remove the leading '#'
+          const params = new URLSearchParams(hash.substring(1));
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token");
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!isMounted) return;
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+          }
+        }
 
-      if (session) {
-        setCheckingSession(false);
-      } else {
-        toast.error("Invalid or expired password reset session.");
-        navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
+        if (session) {
+          setCheckingSession(false);
+        } else {
+          toast.error("Invalid or expired password reset session.");
+          navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
+        }
+      } catch (err) {
+        console.error("Session verification error:", err);
+        if (isMounted) {
+          toast.error("An error occurred verifying your session.");
+          navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
+        }
       }
     };
 
