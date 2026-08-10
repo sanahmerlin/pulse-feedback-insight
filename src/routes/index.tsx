@@ -48,7 +48,7 @@ function Landing() {
   useEffect(() => {
     // Check if we arrived here via a password reset/recovery link fallback
     const hash = window.location.hash;
-    if (hash && (hash.includes("type=recovery") || hash.includes("access_token"))) {
+    if (hash && hash.includes("type=recovery")) {
       navigate({ to: "/auth/reset", search: { mode: "signin" }, hash, replace: true });
       return;
     }
