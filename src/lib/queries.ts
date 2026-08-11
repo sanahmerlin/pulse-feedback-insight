@@ -43,8 +43,6 @@ export const digestsQuery = (category?: string | null) => queryOptions({
     let query = supabase.from("digests").select("*").order("created_at", { ascending: false });
     if (category && category !== "all") {
       query = query.eq("category", category);
-    } else {
-      query = query.is("category", null);
     }
     const { data, error } = await query;
     if (error) throw error;
@@ -58,8 +56,6 @@ export const themesQuery = (category?: string | null) => queryOptions({
     let query = supabase.from("themes").select("*").order("mention_count", { ascending: false });
     if (category && category !== "all") {
       query = query.eq("category", category);
-    } else {
-      query = query.is("category", null);
     }
     const { data, error } = await query;
     if (error) throw error;
