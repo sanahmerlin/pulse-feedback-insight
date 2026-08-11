@@ -1,0 +1,18 @@
+{
+  "short_name": "FeedbackPulse",
+  "name": "FeedbackPulse",
+  "description": "AI-written weekly digests of your customer feedback: themes, urgent issues and next actions.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "orientation": "portrait"
+}
