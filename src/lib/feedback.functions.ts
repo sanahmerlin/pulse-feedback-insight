@@ -7,7 +7,7 @@ const IngestInput = z.object({
   items: z.array(z.string().min(1)).min(1).max(200),
   source: z.string().default("manual"),
   dates: z.array(z.string()).optional(),
-  categories: z.array(z.string().nullable()).optional(),
+  category: z.string().nullable().optional(),
 });
 
 type Tag = {
@@ -25,7 +25,7 @@ export const ingestFeedback = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const items = data.items.map((t) => t.trim().slice(0, 2000)).filter(Boolean);
     const dates = data.dates ?? [];
-    const categories = data.categories ?? [];
+    const category = data.category ?? null;
 
     const tags: Tag[] = [];
     const batchSize = 150;
@@ -72,7 +72,7 @@ export const ingestFeedback = createServerFn({ method: "POST" })
         urgency: tag?.urgency === "high" ? "high" : "none",
         urgency_reason: tag?.urgency === "high" ? (tag.urgency_reason ?? null) : null,
         received_at: receivedAt,
-        category: categories[index] ?? null,
+        category,
       };
     });
 

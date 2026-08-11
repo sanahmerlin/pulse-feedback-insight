@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useRef, useState, useEffect } from "react";
 import Papa from "papaparse";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ingestFeedback, analyzeAndDigest } from "@/lib/feedback.functions";
+import { feedbackQuery } from "@/lib/queries";
 import { toast } from "sonner";
 import { FileUp, Sparkles } from "lucide-react";
 
@@ -33,14 +34,38 @@ function UploadPage() {
   const [status, setStatus] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Query all feedback to dynamically extract unique categories for the dropdown
+  const allFeedback = useQuery(feedbackQuery("all"));
+  const allItems = allFeedback.data ?? [];
+  const categories = Array.from(
+    new Set(allItems.map((i) => i.category).filter(Boolean))
+  ) as string[];
+
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [newCategoryName, setNewCategoryName] = useState<string>("");
+  const [isCreatingNew, setIsCreatingNew] = useState<boolean>(true);
+
+  // Sync default selection once categories list loads
+  useEffect(() => {
+    if (categories.length > 0 && !selectedCategory) {
+      setSelectedCategory(categories[0] || "");
+      setIsCreatingNew(false);
+    }
+  }, [categories, selectedCategory]);
+
   async function submitItems(
     items: string[],
     source: string,
     dates?: string[],
-    categories?: string[]
+    categoryName?: string
   ) {
     if (items.length === 0) {
       toast.error("No feedback found to analyze.");
+      return;
+    }
+    const finalCat = categoryName?.trim();
+    if (!finalCat) {
+      toast.error("Please specify a project/category for this feedback.");
       return;
     }
     setPending("upload");
@@ -51,23 +76,13 @@ function UploadPage() {
           items: items.slice(0, 200),
           source,
           dates: dates?.slice(0, 200),
-          categories: categories?.slice(0, 200),
+          category: finalCat,
         },
       });
 
       setPending("analyze");
-      
-      // Generate separate digests and themes for each unique category uploaded
-      const uniqueCats = Array.from(new Set(categories?.slice(0, 200) ?? [])).filter(Boolean);
-      if (uniqueCats.length > 0) {
-        for (const cat of uniqueCats) {
-          setStatus(`Grouping themes and writing digest for ${cat}…`);
-          await analyze({ data: { category: cat } });
-        }
-      } else {
-        setStatus("Grouping into themes and writing your digest…");
-        await analyze({ data: { category: null } });
-      }
+      setStatus("Grouping into themes and writing your digest…");
+      await analyze({ data: { category: finalCat } });
 
       await queryClient.invalidateQueries();
       toast.success(
@@ -83,21 +98,13 @@ function UploadPage() {
   }
 
   function handlePaste() {
-    const lines = text
+    const items = text
       .split(/\n{2,}|\r?\n/)
       .map((l) => l.trim())
       .filter((l) => l.length > 2);
 
-    const items: string[] = [];
-    const categories: string[] = [];
-
-    for (const line of lines) {
-      const parsed = parsePrefix(line);
-      items.push(parsed.content);
-      categories.push(parsed.category ?? "");
-    }
-
-    void submitItems(items, "manual", undefined, categories.length > 0 ? categories : undefined);
+    const finalCategory = isCreatingNew ? newCategoryName : selectedCategory;
+    void submitItems(items, "manual", undefined, finalCategory);
   }
 
   function handleFile(file: File) {
@@ -111,20 +118,14 @@ function UploadPage() {
         const preferred =
           keys.find((k) => /feedback|review|comment|text|message|body|response/i.test(k)) ?? keys[0];
         const dateKey = keys.find((k) => /date|time|timestamp|received|created/i.test(k));
-        const categoryKey = keys.find((k) => /category|project|product|type/i.test(k));
 
         const items: string[] = [];
         const dates: string[] = [];
-        const categories: string[] = [];
 
         for (const row of rows) {
           const rawContent = String(preferred ? (row[preferred] ?? "") : Object.values(row).join(" ")).trim();
           if (rawContent.length > 2) {
-            const parsed = parsePrefix(rawContent);
-            items.push(parsed.content);
-
-            const categoryVal = categoryKey ? (row[categoryKey] ?? "").trim() : null;
-            categories.push(categoryVal || parsed.category || "");
+            items.push(rawContent);
 
             if (dateKey && row[dateKey]) {
               const parsedDate = Date.parse(row[dateKey]);
@@ -136,11 +137,12 @@ function UploadPage() {
             }
           }
         }
+        const finalCategory = isCreatingNew ? newCategoryName : selectedCategory;
         void submitItems(
           items,
           "csv",
           dates.length > 0 ? dates : undefined,
-          categories.length > 0 ? categories : undefined
+          finalCategory
         );
       },
       error: () => toast.error("Could not read that CSV file."),
@@ -151,7 +153,6 @@ function UploadPage() {
     setPending("analyze");
     setStatus("Re-clustering themes and writing a fresh digest…");
     try {
-      // Find what category is currently viewed or default to null
       const currentCategory = sessionStorage.getItem("feedback_pulse_category") || null;
       await analyze({ data: { category: currentCategory } });
       await queryClient.invalidateQueries();
@@ -172,6 +173,49 @@ function UploadPage() {
       title="Add feedback"
       description="Paste raw feedback or upload a CSV. Each line or row is treated as one piece of feedback."
     >
+      <div className="mb-6 space-y-3 rounded-xl border border-border bg-card p-6 shadow-card">
+        <label className="text-sm font-medium block">Select Project / Business Stream</label>
+        <p className="text-xs text-muted-foreground">
+          Choose an existing project or create a new one to keep these customer reviews separated.
+        </p>
+        
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {categories.length > 0 && (
+            <select
+              value={isCreatingNew ? "new" : selectedCategory}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "new") {
+                  setIsCreatingNew(true);
+                } else {
+                  setIsCreatingNew(false);
+                  setSelectedCategory(val);
+                }
+              }}
+              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer hover:bg-accent/30"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+              <option value="new">+ Create a new project...</option>
+            </select>
+          )}
+
+          {(isCreatingNew || categories.length === 0) && (
+            <input
+              type="text"
+              required
+              placeholder="e.g. SaaS App, Coffee Shop, Tailoring Service"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              className="h-9 w-full max-w-sm rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            />
+          )}
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="lg:col-span-2 rounded-xl border border-border bg-card p-6 shadow-card">
           <label htmlFor="feedback" className="text-sm font-medium">
@@ -241,44 +285,4 @@ function UploadPage() {
       </div>
     </AppShell>
   );
-}
-
-function parsePrefix(line: string): { category: string | null; content: string } {
-  const trimmed = line.trim();
-  
-  // Match 1: "Category", "Content"
-  const matchCsv = trimmed.match(/^"([^"]+)"\s*,\s*"(.+)"$/);
-  if (matchCsv && matchCsv[1] && matchCsv[2]) {
-    return { category: matchCsv[1], content: matchCsv[2] };
-  }
-
-  // Match 2: "Category", Content
-  const matchCsv2 = trimmed.match(/^"([^"]+)"\s*,\s*(.+)$/);
-  if (matchCsv2 && matchCsv2[1] && matchCsv2[2]) {
-    let content = matchCsv2[2].trim();
-    if (content.startsWith('"') && content.endsWith('"')) {
-      content = content.slice(1, -1);
-    }
-    return { category: matchCsv2[1], content };
-  }
-
-  // Match 3: Category: Content (where Category is short, under 30 chars, and not a URL)
-  const matchColon = trimmed.match(/^([^:]+)\s*:\s*(.+)$/);
-  if (matchColon && matchColon[1] && matchColon[2]) {
-    const category = matchColon[1].trim();
-    if (category.length < 30 && !category.includes("http")) {
-      let content = matchColon[2].trim();
-      if (content.startsWith('"') && content.endsWith('"')) {
-        content = content.slice(1, -1);
-      }
-      return { category, content };
-    }
-  }
-
-  // Fallback: no category prefix
-  let content = trimmed;
-  if (content.startsWith('"') && content.endsWith('"')) {
-    content = content.slice(1, -1);
-  }
-  return { category: null, content };
 }
