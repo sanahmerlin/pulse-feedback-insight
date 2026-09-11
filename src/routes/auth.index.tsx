@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/auth")({
+export const Route = createFileRoute("/auth/")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({
     mode: search["mode"] === "signup" ? "signup" : "signin",
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { mode } = useSearch({ from: "/auth" });
+  const { mode } = useSearch({ from: "/auth/" });
   const [isSignUp, setIsSignUp] = useState(mode === "signup");
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");

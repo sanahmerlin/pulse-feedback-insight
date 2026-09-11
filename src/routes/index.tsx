@@ -71,12 +71,12 @@ function Landing() {
           </span>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" size="sm">
-              <Link to="/auth" search={{ mode: "signin" }}>
+              <Link to="/auth/" search={{ mode: "signin" }}>
                 Sign in
               </Link>
             </Button>
             <Button asChild size="sm">
-              <Link to="/auth" search={{ mode: "signup" }}>
+              <Link to="/auth/" search={{ mode: "signup" }}>
                 Get started
               </Link>
             </Button>
@@ -98,12 +98,12 @@ function Landing() {
           </p>
           <div className="mt-9 flex justify-center gap-3">
             <Button asChild size="lg">
-              <Link to="/auth" search={{ mode: "signup" }}>
+              <Link to="/auth/" search={{ mode: "signup" }}>
                 Start free
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/auth" search={{ mode: "signin" }}>
+              <Link to="/auth/" search={{ mode: "signin" }}>
                 Sign in
               </Link>
             </Button>

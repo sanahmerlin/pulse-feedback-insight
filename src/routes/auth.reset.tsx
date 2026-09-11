@@ -47,13 +47,13 @@ function ResetPasswordPage() {
           setCheckingSession(false);
         } else {
           toast.error("Invalid or expired password reset session.");
-          navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
+          navigate({ to: "/auth/", search: { mode: "signin" }, replace: true });
         }
       } catch (err) {
         console.error("Session verification error:", err);
         if (isMounted) {
           toast.error("An error occurred verifying your session.");
-          navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
+          navigate({ to: "/auth/", search: { mode: "signin" }, replace: true });
         }
       }
     };

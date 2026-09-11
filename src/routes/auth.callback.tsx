@@ -10,17 +10,21 @@ function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Listen for auth state change
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    // getSession() will automatically parse the hash fragment from the URL and establish the session
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error("Auth callback error:", error);
+        navigate({ to: "/auth/", search: { mode: "signin" }, replace: true });
+        return;
+      }
+      
       if (session) {
         navigate({ to: "/dashboard", replace: true });
       } else {
-        // If not authenticated, redirect to signin
-        navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
+        // If no session after parsing hash, redirect to login
+        navigate({ to: "/auth/", search: { mode: "signin" }, replace: true });
       }
     });
-
-    return () => subscription.unsubscribe();
   }, [navigate]);
 
   return (
