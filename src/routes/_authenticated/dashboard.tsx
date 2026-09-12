@@ -13,7 +13,6 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-  Legend,
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -185,8 +184,8 @@ function Dashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={trend}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" tickMargin={8} />
-                    <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" allowDecimals={false} width={24} tickMargin={8} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" allowDecimals={false} width={24} />
                     <Tooltip
                       contentStyle={{
                         borderRadius: 8,
@@ -195,9 +194,8 @@ function Dashboard() {
                         fontSize: 12,
                       }}
                     />
-                    <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: "12px", paddingBottom: "10px" }} />
-                    <Area name="Positive" activeDot={{ r: 4, strokeWidth: 0 }} type="monotone" dataKey="positive" stroke="var(--success)" fill="var(--success)" fillOpacity={0.14} />
-                    <Area name="Negative" activeDot={{ r: 4, strokeWidth: 0 }} type="monotone" dataKey="negative" stroke="var(--destructive)" fill="var(--destructive)" fillOpacity={0.12} />
+                    <Area type="monotone" dataKey="positive" stroke="var(--success)" fill="var(--success)" fillOpacity={0.14} />
+                    <Area type="monotone" dataKey="negative" stroke="var(--destructive)" fill="var(--destructive)" fillOpacity={0.12} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
