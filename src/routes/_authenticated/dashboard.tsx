@@ -13,6 +13,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Legend,
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -31,13 +32,17 @@ function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     () => sessionStorage.getItem("feedback_pulse_category") || null
   );
+  const [selectedDateRange, setSelectedDateRange] = useState<string>(
+    () => sessionStorage.getItem("feedback_pulse_date_range") || "all"
+  );
+  const days = selectedDateRange === "all" ? null : parseInt(selectedDateRange, 10);
 
-  const digests = useQuery(digestsQuery(selectedCategory));
-  const feedback = useQuery(feedbackQuery(selectedCategory));
-  const themes = useQuery(themesQuery(selectedCategory));
+  const digests = useQuery(digestsQuery(selectedCategory, days));
+  const feedback = useQuery(feedbackQuery(selectedCategory, days));
+  const themes = useQuery(themesQuery(selectedCategory, days));
 
   // Query all feedback to dynamically extract unique categories for the filter
-  const allFeedback = useQuery(feedbackQuery("all"));
+  const allFeedback = useQuery(feedbackQuery("all", null));
   const allItems = allFeedback.data ?? [];
   const categories = Array.from(
     new Set(allItems.map((i) => i.category).filter(Boolean))
@@ -56,6 +61,11 @@ function Dashboard() {
     } else {
       sessionStorage.removeItem("feedback_pulse_category");
     }
+  };
+
+  const handleDateRangeChange = (range: string) => {
+    setSelectedDateRange(range);
+    sessionStorage.setItem("feedback_pulse_date_range", range);
   };
 
   return (
@@ -81,6 +91,16 @@ function Dashboard() {
               ))}
             </select>
           )}
+          <select
+            value={selectedDateRange}
+            onChange={(e) => handleDateRangeChange(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-primary cursor-pointer hover:bg-accent/30"
+          >
+            <option value="all">All time</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
           <Button asChild>
             <Link to="/upload">
               <Sparkles className="size-4" />
@@ -165,8 +185,8 @@ function Dashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={trend}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" allowDecimals={false} width={24} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" tickMargin={8} />
+                    <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" allowDecimals={false} width={24} tickMargin={8} />
                     <Tooltip
                       contentStyle={{
                         borderRadius: 8,
@@ -175,8 +195,9 @@ function Dashboard() {
                         fontSize: 12,
                       }}
                     />
-                    <Area type="monotone" dataKey="positive" stroke="var(--success)" fill="var(--success)" fillOpacity={0.14} />
-                    <Area type="monotone" dataKey="negative" stroke="var(--destructive)" fill="var(--destructive)" fillOpacity={0.12} />
+                    <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: "12px", paddingBottom: "10px" }} />
+                    <Area name="Positive" activeDot={{ r: 4, strokeWidth: 0 }} type="monotone" dataKey="positive" stroke="var(--success)" fill="var(--success)" fillOpacity={0.14} />
+                    <Area name="Negative" activeDot={{ r: 4, strokeWidth: 0 }} type="monotone" dataKey="negative" stroke="var(--destructive)" fill="var(--destructive)" fillOpacity={0.12} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

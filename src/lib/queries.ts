@@ -37,12 +37,16 @@ export type FeedbackItem = {
   category: string | null;
 };
 
-export const digestsQuery = (category?: string | null) => queryOptions({
-  queryKey: ["digests", category],
+export const digestsQuery = (category?: string | null, days?: number | null) => queryOptions({
+  queryKey: ["digests", category, days],
   queryFn: async () => {
     let query = supabase.from("digests").select("*").order("created_at", { ascending: false });
     if (category && category !== "all") {
       query = query.eq("category", category);
+    }
+    if (days) {
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte("created_at", cutoff);
     }
     const { data, error } = await query;
     if (error) throw error;
@@ -50,12 +54,16 @@ export const digestsQuery = (category?: string | null) => queryOptions({
   },
 });
 
-export const themesQuery = (category?: string | null) => queryOptions({
-  queryKey: ["themes", category],
+export const themesQuery = (category?: string | null, days?: number | null) => queryOptions({
+  queryKey: ["themes", category, days],
   queryFn: async () => {
     let query = supabase.from("themes").select("*").order("mention_count", { ascending: false });
     if (category && category !== "all") {
       query = query.eq("category", category);
+    }
+    if (days) {
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte("created_at", cutoff);
     }
     const { data, error } = await query;
     if (error) throw error;
@@ -63,12 +71,16 @@ export const themesQuery = (category?: string | null) => queryOptions({
   },
 });
 
-export const feedbackQuery = (category?: string | null) => queryOptions({
-  queryKey: ["feedback", category],
+export const feedbackQuery = (category?: string | null, days?: number | null) => queryOptions({
+  queryKey: ["feedback", category, days],
   queryFn: async () => {
     let query = supabase.from("feedback_items").select("*").order("received_at", { ascending: false }).limit(500);
     if (category && category !== "all") {
       query = query.eq("category", category);
+    }
+    if (days) {
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte("received_at", cutoff);
     }
     const { data, error } = await query;
     if (error) throw error;
