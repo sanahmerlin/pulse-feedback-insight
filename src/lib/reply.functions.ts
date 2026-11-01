@@ -24,7 +24,7 @@ const GenerateReplyInput = z.object({
 
 export const generateReply = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => GenerateReplyInput.parse(input))
+  .validator((input: unknown) => GenerateReplyInput.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
@@ -147,7 +147,7 @@ RESPOND STRICTLY AS JSON:
 
 export const updateReplyState = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     z.object({
       reviewId: z.string(),
       status: z.enum(["needs_reply", "drafted", "replied"]),
@@ -184,7 +184,7 @@ export const updateReplyState = createServerFn({ method: "POST" })
 
 export const saveReplySettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     z.object({
       business_name: z.string().min(1, "Business name is required"),
       tone: z.enum(["Warm", "Professional", "Apologetic-but-firm"]),

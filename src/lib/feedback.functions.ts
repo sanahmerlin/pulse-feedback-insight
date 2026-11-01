@@ -20,7 +20,7 @@ type Tag = {
 
 export const ingestFeedback = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => IngestInput.parse(input))
+  .validator((input: unknown) => IngestInput.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const items = data.items.map((t) => t.trim().slice(0, 2000)).filter(Boolean);
@@ -84,7 +84,7 @@ export const ingestFeedback = createServerFn({ method: "POST" })
 
 export const analyzeAndDigest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ category: z.string().nullable().optional() }).parse)
+  .validator(z.object({ category: z.string().nullable().optional() }).parse)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const category = data.category ?? null;
