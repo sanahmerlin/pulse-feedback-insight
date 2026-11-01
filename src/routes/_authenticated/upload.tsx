@@ -110,15 +110,8 @@ function UploadPage() {
       navigate({ to: "/dashboard" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Analysis failed";
-      if (
-        msg.toLowerCase().includes("unauthorized") ||
-        msg.toLowerCase().includes("session") ||
-        msg.toLowerCase().includes("token")
-      ) {
-        toast.error("Your session has expired. Please sign out and sign back in — your feedback draft is saved!");
-      } else {
-        toast.error(msg);
-      }
+      console.error("Analysis error:", err);
+      toast.error(msg);
     } finally {
       setPending(null);
       setStatus("");
