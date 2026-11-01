@@ -73,6 +73,10 @@ export type Database = {
           urgency_reason: string | null
           user_id: string
           category: string | null
+          reply_draft: string | null
+          reply_status: string | null
+          reply_updated_at: string | null
+          star_rating: number | null
         }
         Insert: {
           content: string
@@ -87,6 +91,10 @@ export type Database = {
           urgency_reason?: string | null
           user_id: string
           category?: string | null
+          reply_draft?: string | null
+          reply_status?: string | null
+          reply_updated_at?: string | null
+          star_rating?: number | null
         }
         Update: {
           content?: string
@@ -101,6 +109,10 @@ export type Database = {
           urgency_reason?: string | null
           user_id?: string
           category?: string | null
+          reply_draft?: string | null
+          reply_status?: string | null
+          reply_updated_at?: string | null
+          star_rating?: number | null
         }
         Relationships: [
           {
@@ -111,6 +123,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reply_settings: {
+        Row: {
+          user_id: string
+          business_name: string
+          tone: string
+          sign_off: string
+          contact_info: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          business_name?: string
+          tone?: string
+          sign_off?: string
+          contact_info?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          business_name?: string
+          tone?: string
+          sign_off?: string
+          contact_info?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       themes: {
         Row: {

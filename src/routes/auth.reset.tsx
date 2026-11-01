@@ -24,7 +24,15 @@ function ResetPasswordPage() {
 
     const checkSession = async () => {
       try {
-        // Manually parse tokens from URL hash if they are present
+        // 1. Check for PKCE code in query params (?code=...)
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get("code");
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        }
+
+        // 2. Manually parse tokens from URL hash if they are present
         const hash = window.location.hash;
         if (hash) {
           // Remove the leading '#'
@@ -47,13 +55,13 @@ function ResetPasswordPage() {
           setCheckingSession(false);
         } else {
           toast.error("Invalid or expired password reset session.");
-          navigate({ to: "/auth/", search: { mode: "signin" }, replace: true });
+          navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
         }
       } catch (err) {
         console.error("Session verification error:", err);
         if (isMounted) {
           toast.error("An error occurred verifying your session.");
-          navigate({ to: "/auth/", search: { mode: "signin" }, replace: true });
+          navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
         }
       }
     };

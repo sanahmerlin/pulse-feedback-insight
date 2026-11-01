@@ -35,7 +35,65 @@ export type FeedbackItem = {
   theme_id: string | null;
   received_at: string;
   category: string | null;
+  reply_draft?: string | null;
+  reply_status?: "needs_reply" | "drafted" | "replied" | string | null;
+  reply_updated_at?: string | null;
+  star_rating?: number | null;
 };
+
+export type ReplySettings = {
+  business_name: string;
+  tone: "Warm" | "Professional" | "Apologetic-but-firm";
+  sign_off: string;
+  contact_info: string;
+};
+
+export const defaultReplySettings: ReplySettings = {
+  business_name: "",
+  tone: "Warm",
+  sign_off: "Owner",
+  contact_info: "",
+};
+
+export const replySettingsQuery = () => queryOptions({
+  queryKey: ["reply_settings"],
+  queryFn: async (): Promise<ReplySettings> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return getLocalReplySettings();
+      }
+      const { data, error } = await supabase
+        .from("reply_settings")
+        .select("business_name, tone, sign_off, contact_info")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error || !data) {
+        return getLocalReplySettings();
+      }
+      return {
+        business_name: data.business_name ?? "",
+        tone: (data.tone as any) || "Warm",
+        sign_off: data.sign_off ?? "",
+        contact_info: data.contact_info ?? "",
+      };
+    } catch {
+      return getLocalReplySettings();
+    }
+  },
+});
+
+function getLocalReplySettings(): ReplySettings {
+  if (typeof window === "undefined") return defaultReplySettings;
+  try {
+    const raw = localStorage.getItem("feedback_pulse_reply_settings");
+    if (!raw) return defaultReplySettings;
+    return { ...defaultReplySettings, ...JSON.parse(raw) };
+  } catch {
+    return defaultReplySettings;
+  }
+}
 
 export const digestsQuery = (category?: string | null, days?: number | null) => queryOptions({
   queryKey: ["digests", category, days],

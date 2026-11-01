@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, Layers, History, Upload, LogOut } from "lucide-react";
+import { LayoutDashboard, Layers, History, Upload, LogOut, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "./Logo";
 import type { ReactNode } from "react";
@@ -11,6 +11,7 @@ const nav = [
   { to: "/upload", label: "Add feedback", icon: Upload },
   { to: "/themes", label: "Themes", icon: Layers },
   { to: "/history", label: "History", icon: History },
+  { to: "/settings", label: "Reply Settings", icon: Sliders },
 ] as const;
 
 export function AppShell({

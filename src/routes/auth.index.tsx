@@ -57,7 +57,7 @@ function AuthPage() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: window.location.origin + "/auth/callback" },
         });
         if (error) throw error;
         if (!data.session) {
@@ -70,7 +70,19 @@ function AuthPage() {
       }
       navigate({ to: "/dashboard", replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      if (
+        message.toLowerCase().includes("failed to fetch") ||
+        message.toLowerCase().includes("networkerror") ||
+        message.toLowerCase().includes("enotfound")
+      ) {
+        toast.error(
+          "Unable to connect to Supabase. If you haven't opened this project recently, your Supabase project may be paused in your Supabase dashboard.",
+          { duration: 7000 }
+        );
+      } else {
+        toast.error(message);
+      }
     } finally {
       setLoading(false);
     }

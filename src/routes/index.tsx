@@ -50,7 +50,14 @@ function Landing() {
     // Check if we arrived here via a password reset/recovery link fallback
     const hash = window.location.hash;
     if (hash && hash.includes("type=recovery")) {
-      navigate({ to: "/auth/reset", search: { mode: "signin" }, hash, replace: true });
+      navigate({ to: "/auth/reset", hash, replace: true });
+      return;
+    }
+
+    // Check if we arrived with a PKCE code meant for auth callback
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has("code")) {
+      navigate({ to: "/auth/callback", replace: true });
       return;
     }
 
@@ -71,12 +78,12 @@ function Landing() {
           </span>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" size="sm">
-              <Link to="/auth/" search={{ mode: "signin" }}>
+              <Link to="/auth" search={{ mode: "signin" }}>
                 Sign in
               </Link>
             </Button>
             <Button asChild size="sm">
-              <Link to="/auth/" search={{ mode: "signup" }}>
+              <Link to="/auth" search={{ mode: "signup" }}>
                 Get started
               </Link>
             </Button>
@@ -98,12 +105,12 @@ function Landing() {
           </p>
           <div className="mt-9 flex justify-center gap-3">
             <Button asChild size="lg">
-              <Link to="/auth/" search={{ mode: "signup" }}>
+              <Link to="/auth" search={{ mode: "signup" }}>
                 Start free
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/auth/" search={{ mode: "signin" }}>
+              <Link to="/auth" search={{ mode: "signin" }}>
                 Sign in
               </Link>
             </Button>
