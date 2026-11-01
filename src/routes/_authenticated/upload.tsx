@@ -29,7 +29,23 @@ function UploadPage() {
   const ingest = useServerFn(ingestFeedback);
   const analyze = useServerFn(analyzeAndDigest);
 
-  const [text, setText] = useState("");
+  const [text, setText] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("pulse_upload_draft") || "";
+    }
+    return "";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (text) {
+        localStorage.setItem("pulse_upload_draft", text);
+      } else {
+        localStorage.removeItem("pulse_upload_draft");
+      }
+    }
+  }, [text]);
+
   const [pending, setPending] = useState<null | "upload" | "analyze">(null);
   const [status, setStatus] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -85,12 +101,24 @@ function UploadPage() {
       await analyze({ data: { category: finalCat } });
 
       await queryClient.invalidateQueries();
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("pulse_upload_draft");
+      }
       toast.success(
         `Analyzed ${result.inserted} items${result.urgent > 0 ? ` · ${result.urgent} urgent` : ""}`,
       );
       navigate({ to: "/dashboard" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Analysis failed");
+      const msg = err instanceof Error ? err.message : "Analysis failed";
+      if (
+        msg.toLowerCase().includes("unauthorized") ||
+        msg.toLowerCase().includes("session") ||
+        msg.toLowerCase().includes("token")
+      ) {
+        toast.error("Your session has expired. Please sign out and sign back in — your feedback draft is saved!");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setPending(null);
       setStatus("");
