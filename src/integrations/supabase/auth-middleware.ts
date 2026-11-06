@@ -97,13 +97,16 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
       throw new Error('Unauthorized: No authentication session found. Please sign in to continue.');
     }
 
+    const SERVICE_ROLE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'] || process.env['SUPABASE_SECRET_KEY'];
+    const dbKey = SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY!;
+
     const supabase = createClient<Database>(
       SUPABASE_URL!,
-      SUPABASE_PUBLISHABLE_KEY!,
+      dbKey,
       {
         global: {
-          fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY!),
-          headers: {
+          fetch: createSupabaseFetch(dbKey),
+          headers: SERVICE_ROLE_KEY ? undefined : {
             Authorization: `Bearer ${token}`,
           },
         },
