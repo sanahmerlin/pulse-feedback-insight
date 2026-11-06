@@ -4,11 +4,18 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from './types'
 import { supabase as clientSupabase } from './client'
 
+function cleanKey(val?: string | null): string {
+  if (!val) return '';
+  return val.trim().replace(/^[\r\n\s"'`]+|[\r\n\s"'`]+$/g, '').trim();
+}
+
 function isNewSupabaseApiKey(value: string): boolean {
-  return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
+  const cleaned = cleanKey(value);
+  return cleaned.startsWith('sb_publishable_') || cleaned.startsWith('sb_secret_');
 }
 
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
+  const cleanedKey = cleanKey(supabaseKey);
   return (input, init) => {
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
@@ -19,11 +26,12 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     // New Supabase API keys are opaque strings, not bearer JWTs.
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
+    const authHeader = headers.get('Authorization');
+    if (isNewSupabaseApiKey(cleanedKey) && authHeader && authHeader.includes(cleanedKey)) {
       headers.delete('Authorization');
     }
 
-    headers.set('apikey', supabaseKey);
+    headers.set('apikey', cleanedKey);
     return fetch(input, { ...init, headers });
   };
 }
@@ -97,7 +105,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
       throw new Error('Unauthorized: No authentication session found. Please sign in to continue.');
     }
 
-    const SERVICE_ROLE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'] || process.env['SUPABASE_SECRET_KEY'];
+    const rawServiceKey = process.env['SUPABASE_SERVICE_ROLE_KEY'] || process.env['SUPABASE_SECRET_KEY'];
+    const SERVICE_ROLE_KEY = cleanKey(rawServiceKey) || undefined;
     const dbKey = SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY!;
 
     const supabase = createClient<Database>(
@@ -183,6 +192,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
         userId,
         user: userObj,
         claims: userClaims,
+        token,
       },
     });
   });

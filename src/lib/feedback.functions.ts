@@ -1,7 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callAiJson } from "@/lib/ai.server";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { z } from "zod";
+
+function getFallbackClient(token?: string) {
+  const url = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || "https://wziyxocwnwqeupkkutgr.supabase.co";
+  const key = process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || "sb_publishable_3JSJLIsZJcjtz4c2GeSWMA_kHIroIUP";
+  return createClient<Database>(url, key, {
+    global: {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    },
+  });
+}
 
 const IngestInput = z.object({
   items: z.array(z.string().min(1)).min(1).max(200),
@@ -76,7 +88,13 @@ export const ingestFeedback = createServerFn({ method: "POST" })
       };
     });
 
-    const { error } = await supabase.from("feedback_items").insert(rows);
+    let { error } = await supabase.from("feedback_items").insert(rows);
+    if (error && (error.message.includes("Invalid API key") || error.code === "PGRST301")) {
+      console.warn("Retrying feedback_items insert with fallback client:", error.message);
+      const fallback = getFallbackClient((context as any).token);
+      const retry = await fallback.from("feedback_items").insert(rows);
+      error = retry.error;
+    }
     if (error) throw new Error(error.message);
 
     return { inserted: rows.length, urgent: rows.filter((r) => r.urgency === "high").length };
@@ -100,9 +118,26 @@ export const analyzeAndDigest = createServerFn({ method: "POST" })
       query = query.is("category", null);
     }
 
-    const { data: feedback, error: fetchError } = await query
+    let { data: feedback, error: fetchError } = await query
       .order("received_at", { ascending: false })
       .limit(300);
+
+    if (fetchError && (fetchError.message.includes("Invalid API key") || fetchError.code === "PGRST301")) {
+      console.warn("Retrying feedback query with fallback client:", fetchError.message);
+      const fallback = getFallbackClient((context as any).token);
+      let retryQuery = fallback
+        .from("feedback_items")
+        .select("id, content, sentiment, topic, urgency")
+        .eq("user_id", userId);
+      if (category) {
+        retryQuery = retryQuery.eq("category", category);
+      } else {
+        retryQuery = retryQuery.is("category", null);
+      }
+      const retryRes = await retryQuery.order("received_at", { ascending: false }).limit(300);
+      feedback = retryRes.data;
+      fetchError = retryRes.error;
+    }
 
     if (fetchError) throw new Error(fetchError.message);
     if (!feedback || feedback.length === 0) return { themes: 0, items: 0 };
