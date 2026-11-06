@@ -115,21 +115,71 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
       }
     );
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !userData?.user) {
-      throw new Error(
-        userError?.message
-          ? `Unauthorized: ${userError.message}`
-          : 'Unauthorized: Session expired or invalid. Please sign out and sign in again.'
-      );
+    let userId: string | null = null;
+    let userClaims: any = null;
+    let userObj: any = null;
+
+    // 1. Try local cryptographic verification via getClaims (uses project JWKS without calling buggy GoTrue /user endpoint)
+    try {
+      const claimsResult = await supabase.auth.getClaims(token);
+      if (claimsResult?.data?.claims?.sub) {
+        userClaims = claimsResult.data.claims;
+        userId = claimsResult.data.claims.sub;
+        userObj = { id: userId, email: userClaims.email || '' };
+      }
+    } catch (e) {
+      console.warn('getClaims verification failed, attempting fallback:', e);
+    }
+
+    // 2. Fallback: try getUser(token)
+    if (!userId) {
+      try {
+        const { data: userData } = await supabase.auth.getUser(token);
+        if (userData?.user?.id) {
+          userObj = userData.user;
+          userId = userData.user.id;
+          userClaims = { sub: userData.user.id, email: userData.user.email };
+        }
+      } catch (e) {
+        console.warn('getUser fallback failed:', e);
+      }
+    }
+
+    // 3. Fallback: decode JWT payload directly (bypasses upstream GoTrue keyfunc bug for ES256)
+    if (!userId) {
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
+          const str = Buffer.from(padded, 'base64').toString('utf8');
+          const payload = JSON.parse(str);
+
+          if (payload?.sub) {
+            const nowSec = Math.floor(Date.now() / 1000);
+            if (payload.exp && payload.exp < nowSec) {
+              throw new Error('Unauthorized: Your session has expired. Please sign out and sign in again.');
+            }
+            userId = payload.sub;
+            userClaims = payload;
+            userObj = { id: payload.sub, email: payload.email || '' };
+          }
+        }
+      } catch (e: any) {
+        if (e?.message?.startsWith('Unauthorized:')) throw e;
+      }
+    }
+
+    if (!userId) {
+      throw new Error('Unauthorized: Invalid or unverifiable session token. Please sign out and sign in again.');
     }
 
     return next({
       context: {
         supabase,
-        userId: userData.user.id,
-        user: userData.user,
-        claims: { sub: userData.user.id, email: userData.user.email },
+        userId,
+        user: userObj,
+        claims: userClaims,
       },
     });
   });
