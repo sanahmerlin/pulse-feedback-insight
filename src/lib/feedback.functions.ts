@@ -105,6 +105,12 @@ export const ingestFeedback = createServerFn({ method: "POST" })
       const retry = await fallback.from("feedback_items").insert(rows);
       error = retry.error;
     }
+    if (error && error.message.includes("category")) {
+      console.warn("PostgREST schema cache missing category column, retrying rows without category field...");
+      const rowsWithoutCategory = rows.map(({ category: _, ...rest }) => rest);
+      const retryWithoutCat = await supabase.from("feedback_items").insert(rowsWithoutCategory);
+      error = retryWithoutCat.error;
+    }
     if (error) {
       if (error.code === "42501" || error.message.includes("row-level security")) {
         throw new Error("Supabase RLS is blocking inserts. Run the quick SQL script in Supabase SQL editor to allow access, or add SUPABASE_SECRET_KEY in Vercel.");
@@ -152,6 +158,18 @@ export const analyzeAndDigest = createServerFn({ method: "POST" })
       const retryRes = await retryQuery.order("received_at", { ascending: false }).limit(300);
       feedback = retryRes.data;
       fetchError = retryRes.error;
+    }
+
+    if (fetchError && fetchError.message.includes("category")) {
+      console.warn("Retrying feedback query without category filter due to schema cache...");
+      const retryWithoutCategory = await supabase
+        .from("feedback_items")
+        .select("id, content, sentiment, topic, urgency")
+        .eq("user_id", userId)
+        .order("received_at", { ascending: false })
+        .limit(300);
+      feedback = retryWithoutCategory.data;
+      fetchError = retryWithoutCategory.error;
     }
 
     if (fetchError) throw new Error(fetchError.message);
