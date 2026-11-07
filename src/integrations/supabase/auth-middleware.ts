@@ -25,10 +25,21 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
 
-    // New Supabase API keys are opaque strings, not bearer JWTs.
-    const authHeader = headers.get('Authorization');
-    if (isNewSupabaseApiKey(cleanedKey) && authHeader && authHeader.includes(cleanedKey)) {
-      headers.delete('Authorization');
+    const urlStr = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
+    // Strip Authorization header for PostgREST (/rest/v1/) requests when:
+    // - using new opaque keys (sb_publishable_ / sb_secret_)
+    // - or token is an ES256 JWT which PostgREST cannot verify (causes PGRST301 "No suitable key or wrong key type")
+    if (urlStr.includes('/rest/v1/')) {
+      const authHeader = headers.get('Authorization');
+      if (authHeader) {
+        if (
+          isNewSupabaseApiKey(cleanedKey) ||
+          authHeader.includes('eyJhbGciOiJFUzI1Ni') ||
+          authHeader.includes(cleanedKey)
+        ) {
+          headers.delete('Authorization');
+        }
+      }
     }
 
     headers.set('apikey', cleanedKey);
@@ -105,7 +116,16 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
       throw new Error('Unauthorized: No authentication session found. Please sign in to continue.');
     }
 
-    const rawServiceKey = process.env['SUPABASE_SERVICE_ROLE_KEY'] || process.env['SUPABASE_SECRET_KEY'];
+    const rawServiceKey =
+      process.env['SUPABASE_SERVICE_ROLE_KEY'] ||
+      process.env['SUPABASE_SECRET_KEY'] ||
+      process.env['SERVICE_ROLE_KEY'] ||
+      process.env['SUPABASE_SERVICE_KEY'] ||
+      process.env['VITE_SUPABASE_SERVICE_ROLE_KEY'] ||
+      process.env['VITE_SUPABASE_SECRET_KEY'] ||
+      process.env['SUPABASE_SECRET'] ||
+      process.env['SB_SECRET_KEY'] ||
+      process.env['SECRET_KEY'];
     const SERVICE_ROLE_KEY = cleanKey(rawServiceKey) || undefined;
     const dbKey = SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY!;
 
@@ -115,9 +135,6 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
       {
         global: {
           fetch: createSupabaseFetch(dbKey),
-          headers: SERVICE_ROLE_KEY ? undefined : {
-            Authorization: `Bearer ${token}`,
-          },
         },
         auth: {
           storage: undefined,

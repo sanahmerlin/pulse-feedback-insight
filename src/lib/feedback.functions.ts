@@ -5,12 +5,22 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { z } from "zod";
 
-function getFallbackClient(token?: string) {
+function getFallbackClient() {
   const url = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || "https://wziyxocwnwqeupkkutgr.supabase.co";
   const key = process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || "sb_publishable_3JSJLIsZJcjtz4c2GeSWMA_kHIroIUP";
   return createClient<Database>(url, key, {
     global: {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      fetch: (input, init) => {
+        const headers = new Headers(
+          typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined
+        );
+        if (init?.headers) {
+          new Headers(init.headers).forEach((v, k) => headers.set(k, v));
+        }
+        headers.set('apikey', key);
+        headers.delete('Authorization');
+        return fetch(input, { ...init, headers });
+      }
     },
   });
 }
@@ -91,11 +101,16 @@ export const ingestFeedback = createServerFn({ method: "POST" })
     let { error } = await supabase.from("feedback_items").insert(rows);
     if (error && (error.message.includes("Invalid API key") || error.code === "PGRST301")) {
       console.warn("Retrying feedback_items insert with fallback client:", error.message);
-      const fallback = getFallbackClient((context as any).token);
+      const fallback = getFallbackClient();
       const retry = await fallback.from("feedback_items").insert(rows);
       error = retry.error;
     }
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "42501" || error.message.includes("row-level security")) {
+        throw new Error("Supabase RLS is blocking inserts. Run the quick SQL script in Supabase SQL editor to allow access, or add SUPABASE_SECRET_KEY in Vercel.");
+      }
+      throw new Error(error.message);
+    }
 
     return { inserted: rows.length, urgent: rows.filter((r) => r.urgency === "high").length };
   });
@@ -124,7 +139,7 @@ export const analyzeAndDigest = createServerFn({ method: "POST" })
 
     if (fetchError && (fetchError.message.includes("Invalid API key") || fetchError.code === "PGRST301")) {
       console.warn("Retrying feedback query with fallback client:", fetchError.message);
-      const fallback = getFallbackClient((context as any).token);
+      const fallback = getFallbackClient();
       let retryQuery = fallback
         .from("feedback_items")
         .select("id, content, sentiment, topic, urgency")
