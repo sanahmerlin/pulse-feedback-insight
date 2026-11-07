@@ -71,6 +71,9 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
     const DEFAULT_URL = "https://wziyxocwnwqeupkkutgr.supabase.co";
     const DEFAULT_KEY = "sb_publishable_3JSJLIsZJcjtz4c2GeSWMA_kHIroIUP";
 
+    const rawUrl = cleanKey(process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL']);
+    const SUPABASE_URL = rawUrl || DEFAULT_URL;
+
     const rawPubKey = cleanKey(process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY']);
     const SUPABASE_PUBLISHABLE_KEY = (rawPubKey && rawPubKey.startsWith('sb_publishable_')) ? rawPubKey : DEFAULT_KEY;
 
