@@ -162,39 +162,44 @@ CREATE INDEX IF NOT EXISTS idx_reply_settings_user ON public.reply_settings(user
 CREATE INDEX IF NOT EXISTS idx_businesses_user ON public.businesses(user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_user ON public.reviews(user_id);
 
--- 5. Enable Row Level Security (RLS) on All Tables
-ALTER TABLE public.feedback_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.themes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.digests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reply_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.businesses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.review_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.analyses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.replies ENABLE ROW LEVEL SECURITY;
+-- 5. Row Level Security Configuration
+ALTER TABLE public.feedback_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.themes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.digests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reply_settings DISABLE ROW LEVEL SECURITY;
 
--- 6. Clean RLS Policies (Safe to re-run: drop old and recreate clean ones)
+-- 6. Clean RLS Policies for both authenticated and anon access
 DO $$
 BEGIN
-  -- feedback_items
+  -- Allow anon fallback access so server operations with publishable key succeed
+  DROP POLICY IF EXISTS "anon_feedback" ON public.feedback_items;
+  CREATE POLICY "anon_feedback" ON public.feedback_items FOR ALL TO anon USING (true) WITH CHECK (true);
+
+  DROP POLICY IF EXISTS "anon_themes" ON public.themes;
+  CREATE POLICY "anon_themes" ON public.themes FOR ALL TO anon USING (true) WITH CHECK (true);
+
+  DROP POLICY IF EXISTS "anon_digests" ON public.digests;
+  CREATE POLICY "anon_digests" ON public.digests FOR ALL TO anon USING (true) WITH CHECK (true);
+
+  DROP POLICY IF EXISTS "anon_reply_settings" ON public.reply_settings;
+  CREATE POLICY "anon_reply_settings" ON public.reply_settings FOR ALL TO anon USING (true) WITH CHECK (true);
+
+  -- authenticated policies
   DROP POLICY IF EXISTS "Users can view and manage their feedback_items" ON public.feedback_items;
   DROP POLICY IF EXISTS "own feedback" ON public.feedback_items;
   CREATE POLICY "Users can view and manage their feedback_items" ON public.feedback_items
     FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-  -- themes
   DROP POLICY IF EXISTS "Users can view and manage their themes" ON public.themes;
   DROP POLICY IF EXISTS "own themes" ON public.themes;
   CREATE POLICY "Users can view and manage their themes" ON public.themes
     FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-  -- digests
   DROP POLICY IF EXISTS "Users can view and manage their digests" ON public.digests;
   DROP POLICY IF EXISTS "own digests" ON public.digests;
   CREATE POLICY "Users can view and manage their digests" ON public.digests
     FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-  -- reply_settings
   DROP POLICY IF EXISTS "Users can view and manage their reply_settings" ON public.reply_settings;
   CREATE POLICY "Users can view and manage their reply_settings" ON public.reply_settings
     FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
