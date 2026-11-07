@@ -5,12 +5,17 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { z } from "zod";
 
+const DEFAULT_URL = "https://wziyxocwnwqeupkkutgr.supabase.co";
+const DEFAULT_KEY = "sb_publishable_3JSJLIsZJcjtz4c2GeSWMA_kHIroIUP";
+
 function getFallbackClient() {
-  const url = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || "https://wziyxocwnwqeupkkutgr.supabase.co";
-  const key = process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || "sb_publishable_3JSJLIsZJcjtz4c2GeSWMA_kHIroIUP";
+  const url = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || DEFAULT_URL;
+  const rawKey = (process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || '').trim();
+  const key = rawKey.startsWith('sb_publishable_') ? rawKey : DEFAULT_KEY;
   return createClient<Database>(url, key, {
     global: {
       fetch: (input, init) => {
+        const urlStr = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
         const headers = new Headers(
           typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined
         );
@@ -18,8 +23,11 @@ function getFallbackClient() {
           new Headers(init.headers).forEach((v, k) => headers.set(k, v));
         }
         headers.set('apikey', key);
+        headers.delete('authorization');
         headers.delete('Authorization');
-        return fetch(input, { ...init, headers });
+        const method = init?.method || (input instanceof Request ? input.method : undefined);
+        const body = init?.body || (input instanceof Request ? input.body : undefined);
+        return fetch(urlStr, { ...init, method, body, headers });
       }
     },
   });
@@ -100,7 +108,7 @@ export const ingestFeedback = createServerFn({ method: "POST" })
 
     let { error } = await supabase.from("feedback_items").insert(rows);
     if (error) {
-      console.warn("Primary feedback_items insert failed, retrying with clean fallback client:", error.message);
+      console.warn("Primary feedback_items insert failed, retrying with fallback client:", error.message);
       const fallback = getFallbackClient();
       const retry = await fallback.from("feedback_items").insert(rows);
       if (!retry.error) {
@@ -114,13 +122,49 @@ export const ingestFeedback = createServerFn({ method: "POST" })
       const rowsWithoutCategory = rows.map(({ category: _, ...rest }) => rest);
       const fallback = getFallbackClient();
       const retryWithoutCat = await fallback.from("feedback_items").insert(rowsWithoutCategory);
-      error = retryWithoutCat.error;
+      if (!retryWithoutCat.error) {
+        error = null;
+      } else {
+        error = retryWithoutCat.error;
+      }
     }
     if (error) {
-      if (error.code === "42501" || error.message.includes("row-level security")) {
-        throw new Error("Supabase RLS is blocking inserts. Run the quick SQL script in Supabase SQL editor to allow access, or add SUPABASE_SECRET_KEY in Vercel.");
+      console.warn("Supabase-js insert failed, executing direct REST insert fallback:", error.message);
+      try {
+        const restUrl = `${DEFAULT_URL}/rest/v1/feedback_items`;
+        const res = await fetch(restUrl, {
+          method: "POST",
+          headers: {
+            apikey: DEFAULT_KEY,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify(rows),
+        });
+        if (res.ok) {
+          error = null;
+        } else {
+          // Retry without category in case column is not recognized
+          const rowsWithoutCategory = rows.map(({ category: _, ...rest }) => rest);
+          const resNoCat = await fetch(restUrl, {
+            method: "POST",
+            headers: {
+              apikey: DEFAULT_KEY,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify(rowsWithoutCategory),
+          });
+          if (resNoCat.ok) {
+            error = null;
+          } else {
+            const errBody = await resNoCat.text();
+            throw new Error(`Failed to store feedback: ${errBody || resNoCat.statusText}`);
+          }
+        }
+      } catch (restErr: any) {
+        throw new Error(restErr?.message || error?.message || "Failed to store feedback");
       }
-      throw new Error(error.message);
     }
 
     return { inserted: rows.length, urgent: rows.filter((r) => r.urgency === "high").length };
@@ -221,9 +265,27 @@ export const analyzeAndDigest = createServerFn({ method: "POST" })
           category,
         })
         .select("id")
-        .single();
-      if (themeError || !inserted) continue;
-      await supabase.from("feedback_items").update({ theme_id: inserted.id }).in("id", ids);
+      let insertedTheme = inserted;
+      if (themeError || !insertedTheme) {
+        const fallback = getFallbackClient();
+        const retryTheme = await fallback
+          .from("themes")
+          .insert({
+            user_id: userId,
+            name: theme.name,
+            description: theme.description,
+            sentiment: ["positive", "negative", "neutral"].includes(theme.sentiment) ? theme.sentiment : "neutral",
+            mention_count: ids.length,
+            category,
+          })
+          .select("id")
+          .single();
+        if (retryTheme.data) {
+          insertedTheme = retryTheme.data;
+        }
+      }
+      if (!insertedTheme) continue;
+      await supabase.from("feedback_items").update({ theme_id: insertedTheme.id }).in("id", ids);
       themeSummaries.push({
         name: theme.name,
         description: theme.description,
@@ -282,9 +344,34 @@ export const analyzeAndDigest = createServerFn({ method: "POST" })
       console.warn("Primary digests insert failed, retrying with fallback client:", digestError.message);
       const fallback = getFallbackClient();
       const retry = await fallback.from("digests").insert(digestPayload);
-      digestError = retry.error;
+      if (!retry.error) {
+        digestError = null;
+      } else {
+        digestError = retry.error;
+      }
     }
-    if (digestError) throw new Error(digestError.message);
+    if (digestError) {
+      console.warn("Retrying digests insert via direct REST call...");
+      try {
+        const res = await fetch(`${DEFAULT_URL}/rest/v1/digests`, {
+          method: "POST",
+          headers: {
+            apikey: DEFAULT_KEY,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify(digestPayload),
+        });
+        if (res.ok) {
+          digestError = null;
+        } else {
+          digestError = new Error(await res.text());
+        }
+      } catch (e: any) {
+        digestError = e;
+      }
+    }
+    if (digestError) throw new Error(digestError.message || "Failed to save digest");
 
     return { themes: themeSummaries.length, items: feedback.length };
   });

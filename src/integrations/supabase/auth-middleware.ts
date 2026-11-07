@@ -17,6 +17,7 @@ function isNewSupabaseApiKey(value: string): boolean {
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
   const cleanedKey = cleanKey(supabaseKey);
   return (input, init) => {
+    const urlStr = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
     );
@@ -25,14 +26,16 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
 
-    const urlStr = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
     // Strip Authorization header for all PostgREST (/rest/v1/) requests to prevent PGRST301
     if (urlStr.includes('/rest/v1/')) {
+      headers.delete('authorization');
       headers.delete('Authorization');
     }
 
     headers.set('apikey', cleanedKey);
-    return fetch(input, { ...init, headers });
+    const method = init?.method || (input instanceof Request ? input.method : undefined);
+    const body = init?.body || (input instanceof Request ? input.body : undefined);
+    return fetch(urlStr, { ...init, method, body, headers });
   };
 }
 
@@ -68,8 +71,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
     const DEFAULT_URL = "https://wziyxocwnwqeupkkutgr.supabase.co";
     const DEFAULT_KEY = "sb_publishable_3JSJLIsZJcjtz4c2GeSWMA_kHIroIUP";
 
-    const SUPABASE_URL = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || DEFAULT_URL;
-    const SUPABASE_PUBLISHABLE_KEY = process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || DEFAULT_KEY;
+    const rawPubKey = cleanKey(process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY']);
+    const SUPABASE_PUBLISHABLE_KEY = (rawPubKey && rawPubKey.startsWith('sb_publishable_')) ? rawPubKey : DEFAULT_KEY;
 
     const request = getRequest();
 
