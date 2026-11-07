@@ -99,16 +99,21 @@ export const ingestFeedback = createServerFn({ method: "POST" })
     });
 
     let { error } = await supabase.from("feedback_items").insert(rows);
-    if (error && (error.message.includes("Invalid API key") || error.code === "PGRST301")) {
-      console.warn("Retrying feedback_items insert with fallback client:", error.message);
+    if (error) {
+      console.warn("Primary feedback_items insert failed, retrying with clean fallback client:", error.message);
       const fallback = getFallbackClient();
       const retry = await fallback.from("feedback_items").insert(rows);
-      error = retry.error;
+      if (!retry.error) {
+        error = null;
+      } else {
+        error = retry.error;
+      }
     }
     if (error && error.message.includes("category")) {
       console.warn("PostgREST schema cache missing category column, retrying rows without category field...");
       const rowsWithoutCategory = rows.map(({ category: _, ...rest }) => rest);
-      const retryWithoutCat = await supabase.from("feedback_items").insert(rowsWithoutCategory);
+      const fallback = getFallbackClient();
+      const retryWithoutCat = await fallback.from("feedback_items").insert(rowsWithoutCategory);
       error = retryWithoutCat.error;
     }
     if (error) {
@@ -259,7 +264,7 @@ export const analyzeAndDigest = createServerFn({ method: "POST" })
     await deleteDigestQuery;
 
     const now = new Date();
-    const { error: digestError } = await supabase.from("digests").insert({
+    const digestPayload = {
       user_id: userId,
       headline: digest.headline ?? "Weekly feedback digest",
       summary: digest.summary ?? "",
@@ -270,7 +275,15 @@ export const analyzeAndDigest = createServerFn({ method: "POST" })
       period_end: now.toISOString(),
       item_count: feedback.length,
       category,
-    });
+    };
+
+    let { error: digestError } = await supabase.from("digests").insert(digestPayload);
+    if (digestError) {
+      console.warn("Primary digests insert failed, retrying with fallback client:", digestError.message);
+      const fallback = getFallbackClient();
+      const retry = await fallback.from("digests").insert(digestPayload);
+      digestError = retry.error;
+    }
     if (digestError) throw new Error(digestError.message);
 
     return { themes: themeSummaries.length, items: feedback.length };
