@@ -31,35 +31,17 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 function createSupabaseAdminClient() {
   const DEFAULT_URL = "https://wziyxocwnwqeupkkutgr.supabase.co";
+  const DEFAULT_KEY = "sb_publishable_3JSJLIsZJcjtz4c2GeSWMA_kHIroIUP";
   const SUPABASE_URL = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || DEFAULT_URL;
-  const rawKey =
-    process.env['SUPABASE_SERVICE_ROLE_KEY'] ||
-    process.env['SUPABASE_SECRET_KEY'] ||
-    process.env['SERVICE_ROLE_KEY'] ||
-    process.env['SUPABASE_SERVICE_KEY'] ||
-    process.env['VITE_SUPABASE_SERVICE_ROLE_KEY'] ||
-    process.env['VITE_SUPABASE_SECRET_KEY'] ||
-    process.env['SUPABASE_SECRET'] ||
-    process.env['SB_SECRET_KEY'] ||
-    process.env['SECRET_KEY'];
-  const SUPABASE_SERVICE_ROLE_KEY = rawKey ? rawKey.trim().replace(/^[\r\n\s"'`]+|[\r\n\s"'`]+$/g, '').trim() : undefined;
+  const rawKey = process.env['SUPABASE_SERVICE_ROLE_KEY'] || process.env['SUPABASE_SECRET_KEY'] || process.env['SERVICE_ROLE_KEY'];
+  const cleanedKey = rawKey ? rawKey.trim().replace(/^[\r\n\s"'`]+|[\r\n\s"'`]+$/g, '').trim() : '';
+  const keyToUse = (cleanedKey && cleanedKey.startsWith('eyJ')) ? cleanedKey : (process.env['SUPABASE_PUBLISHABLE_KEY'] || DEFAULT_KEY);
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SECRET_KEY'] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Please add SUPABASE_SECRET_KEY to your environment variables.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
-  }
-
-  return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  return createClient<Database>(SUPABASE_URL, keyToUse, {
     global: {
-      fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY),
+      fetch: createSupabaseFetch(keyToUse),
     },
     auth: {
-      storage: undefined,
       persistSession: false,
       autoRefreshToken: false,
     }

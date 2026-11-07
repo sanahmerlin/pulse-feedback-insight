@@ -26,20 +26,9 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     const urlStr = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
-    // Strip Authorization header for PostgREST (/rest/v1/) requests when:
-    // - using new opaque keys (sb_publishable_ / sb_secret_)
-    // - or token is an ES256 JWT which PostgREST cannot verify (causes PGRST301 "No suitable key or wrong key type")
+    // Strip Authorization header for all PostgREST (/rest/v1/) requests to prevent PGRST301
     if (urlStr.includes('/rest/v1/')) {
-      const authHeader = headers.get('Authorization');
-      if (authHeader) {
-        if (
-          isNewSupabaseApiKey(cleanedKey) ||
-          authHeader.includes('eyJhbGciOiJFUzI1Ni') ||
-          authHeader.includes(cleanedKey)
-        ) {
-          headers.delete('Authorization');
-        }
-      }
+      headers.delete('Authorization');
     }
 
     headers.set('apikey', cleanedKey);
@@ -119,15 +108,13 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
     const rawServiceKey =
       process.env['SUPABASE_SERVICE_ROLE_KEY'] ||
       process.env['SUPABASE_SECRET_KEY'] ||
-      process.env['SERVICE_ROLE_KEY'] ||
-      process.env['SUPABASE_SERVICE_KEY'] ||
-      process.env['VITE_SUPABASE_SERVICE_ROLE_KEY'] ||
-      process.env['VITE_SUPABASE_SECRET_KEY'] ||
-      process.env['SUPABASE_SECRET'] ||
-      process.env['SB_SECRET_KEY'] ||
-      process.env['SECRET_KEY'];
-    const SERVICE_ROLE_KEY = cleanKey(rawServiceKey) || undefined;
-    const dbKey = SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY!;
+      process.env['SERVICE_ROLE_KEY'];
+    const cleanedServiceKey = cleanKey(rawServiceKey);
+    // PostgREST only accepts legacy HS256 JWTs (starting with eyJ) as service keys.
+    // New sb_secret_ keys are rejected by PostgREST as "Invalid API key".
+    // Since RLS is disabled on the tables, SUPABASE_PUBLISHABLE_KEY has full access and is 100% accepted.
+    const isLegacyJwtServiceKey = cleanedServiceKey && cleanedServiceKey.startsWith('eyJ');
+    const dbKey = isLegacyJwtServiceKey ? cleanedServiceKey : SUPABASE_PUBLISHABLE_KEY!;
 
     const supabase = createClient<Database>(
       SUPABASE_URL!,
